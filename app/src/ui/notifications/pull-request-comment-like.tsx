@@ -2,10 +2,8 @@ import * as React from 'react'
 import { Dialog, DialogContent, DialogFooter } from '../dialog'
 import { PullRequest } from '../../models/pull-request'
 import { Dispatcher } from '../dispatcher'
-import { Account } from '../../models/account'
-import { Octicon } from '../octicons'
-import * as OcticonSymbol from '../octicons/octicons.generated'
-import { OcticonSymbolType } from '../octicons/octicons.generated'
+import { Octicon, OcticonSymbol } from '../octicons'
+import * as octicons from '../octicons/octicons.generated'
 import { RepositoryWithGitHubRepository } from '../../models/repository'
 import { SandboxedMarkdown } from '../lib/sandboxed-markdown'
 import { LinkButton } from '../lib/link-button'
@@ -14,29 +12,35 @@ import { Avatar } from '../lib/avatar'
 import { formatRelative } from '../../lib/format-relative'
 import { getStealthEmailForUser } from '../../lib/email'
 import { IAPIIdentity } from '../../lib/api'
+import { Account } from '../../models/account'
+import { Emoji } from '../../lib/emoji'
 
 interface IPullRequestCommentLikeProps {
+  readonly id?: string
   readonly dispatcher: Dispatcher
-  readonly accounts: ReadonlyArray<Account>
   readonly repository: RepositoryWithGitHubRepository
   readonly pullRequest: PullRequest
   readonly eventDate: Date
   readonly eventVerb: string
-  readonly eventIconSymbol: OcticonSymbolType
+  readonly eventIconSymbol: OcticonSymbol
   readonly eventIconClass: string
   readonly externalURL: string
   readonly user: IAPIIdentity
   readonly body: string
 
   /** Map from the emoji shortcut (e.g., :+1:) to the image's local path. */
-  readonly emoji: Map<string, string>
+  readonly emoji: Map<string, Emoji>
 
   readonly switchingToPullRequest: boolean
+
+  readonly underlineLinks: boolean
 
   readonly renderFooterContent: () => JSX.Element
 
   readonly onSubmit: () => void
   readonly onDismissed: () => void
+
+  readonly accounts: ReadonlyArray<Account>
 }
 
 /**
@@ -50,18 +54,17 @@ export abstract class PullRequestCommentLike extends React.Component<IPullReques
       <div className="pull-request-comment-like-dialog-header">
         {this.renderPullRequestIcon()}
         <span className="pr-title">
-          <span className="pr-title">{title}</span>{' '}
-          <span className="pr-number">#{pullRequestNumber}</span>{' '}
+          {title} <span className="pr-number">#{pullRequestNumber}</span>{' '}
         </span>
       </div>
     )
 
     return (
       <Dialog
-        id="pull-request-review"
+        id={this.props.id}
         type="normal"
         title={header}
-        dismissable={false}
+        backdropDismissable={false}
         onSubmit={this.props.onSubmit}
         onDismissed={this.props.onDismissed}
         loading={this.props.switchingToPullRequest}
@@ -78,7 +81,8 @@ export abstract class PullRequestCommentLike extends React.Component<IPullReques
   }
 
   private renderTimelineItem() {
-    const { user, repository, eventDate, eventVerb, externalURL } = this.props
+    const { user, repository, eventDate, eventVerb, externalURL, accounts } =
+      this.props
     const { endpoint } = repository.gitHubRepository
     const userAvatar = {
       name: user.login,
@@ -102,7 +106,12 @@ export abstract class PullRequestCommentLike extends React.Component<IPullReques
       <div className="timeline-item-container">
         {this.renderDashedTimelineLine('top')}
         <div className={timelineItemClass}>
-          <Avatar user={userAvatar} title={null} size={40} />
+          <Avatar
+            accounts={accounts}
+            user={userAvatar}
+            title={null}
+            size={40}
+          />
           {this.renderReviewIcon()}
           <div className="summary">
             <LinkButton uri={user.html_url} className="author">
@@ -139,6 +148,7 @@ export abstract class PullRequestCommentLike extends React.Component<IPullReques
   private renderDashedTimelineLine(type: 'top' | 'bottom') {
     return (
       <svg
+        aria-hidden="true"
         xmlns="http://www.w3.org/2000/svg"
         className={`timeline-line ${type}`}
       >
@@ -165,6 +175,8 @@ export abstract class PullRequestCommentLike extends React.Component<IPullReques
         repository={base.gitHubRepository}
         onMarkdownLinkClicked={this.onMarkdownLinkClicked}
         markdownContext={'PullRequestComment'}
+        underlineLinks={this.props.underlineLinks}
+        ariaLabel="Pull request markdown comment"
       />
     )
   }
@@ -181,8 +193,8 @@ export abstract class PullRequestCommentLike extends React.Component<IPullReques
         className={cls}
         symbol={
           pullRequest.draft
-            ? OcticonSymbol.gitPullRequestDraft
-            : OcticonSymbol.gitPullRequest
+            ? octicons.gitPullRequestDraft
+            : octicons.gitPullRequest
         }
       />
     )
